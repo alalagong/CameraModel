@@ -167,6 +167,82 @@ Eigen::Vector2d MEICamera::project(const Eigen::Vector3d &xyz) const
     return project(xyz[0], xyz[1], xyz[2]);
 }
 
-void 
+//! 感觉去畸变的过程和xi那些操作无关的, 不需要转到Xs, 
+// bug: 这里的去畸变过程不是很懂原理, cv::undistort()和cv::undistortPoints两个函数
+void MEICamera::undistortPoints(const std::vector<cv::Point2f> &pts_dist, std::vector<cv::Point2f> &pts_udist) const
+{
+    cv::undistortPoints(pts_dist, pts_udist, K_, D_); // 不知道对不对
+}
+
+//TODO, difference between remap or not
+void MEICamera::undistortMat(const cv::Mat &img_dist, cv::Mat &img_undist ) const
+{
+    cv::Size image_size(width_, height_);
+    
+    assert(img_dist.type() == CV_8UC1);
+    img_undist = cv::Mat(height_, width_, img_dist.type());
+
+    cv::Mat mapX = cv::Mat::zeros(image_size, CV_32F);
+    cv::Mat mapY = cv::Mat::zeros(image_size, CV_32F);
+
+    for(int i=0; i<height_; i++)
+    {
+        for(int j=0; j<width_; j++)
+        {
+            cv::Point2f pt_undist, pt_dist;  // point on unit plane
+            pt_undist.x = (j - cx_) / fx_;
+            pt_undist.y = (i - cy_) / fy_;
+
+            double x, y, r2, r4, r6, a1, a2, a3, cdist, xd, yd;
+            x = pt_undist.x;
+            y = pt_undist.y;
+            r2 = x*x + y*y;
+            r4 = r2*r2;
+            r6 = r4*r2;
+            a1 = 2*x*y;
+            a2 = r2 + 2*x*x;
+            a3 = r2 + 2*y*y;
+            cdist = 1 +D_.at<double>(0)*r2 + D_.at<double>(1)*r4;
+            pt_dist.x = x*cdist + D_.at<double>(2)*a1 + D_.at<double>(3)*a2;
+            pt_dist.y = y*cdist + D_.at<double>(2)*a3 + D_.at<double>(3)*a1;
+            xd = pt_dist.x*fx_ + cx_;
+            yd = pt_dist.y*fy_ + cy_;
+
+            mapX.at<float>(j, i) = xd;
+            mapY.at<float>(j, i) = yd;
+
+#ifndef USE_REMAP
+            std::cout<<"Done by no remap !!!"<<std::endl;
+            Eigen::Vector2d pix_dist(xd, yd);
+            if(isInFrame(pix_dist, 1))
+            {
+                // 双线性插值
+                int xi, yi;
+                float dx, dy;
+                xi = floor(xd);
+                yi = floor(yd);
+                dx = xd - xi;
+                dy = yd - yi;
+
+                img_undist.at<uchar>(j, i) = ( (1-dx)*(1-dy)*img_dist.at<uchar>(xi, yi) + 
+                                             dx*(1-dy)*img_dist.at<uchar>(xi+1, yi) + 
+                                             (1-dx)*dy*img_dist.at<uchar>(xi, yi+1) +
+                                             dx*dy*img_dist.at<uchar>(xi+1, yi+1) );
+            }
+            else
+            {
+                img_undist.at<uchar>(j, i) = 0;
+            }
+#endif            
+            }
+        }
+        
+#ifdef USE_REMAP
+        std::cout<<"Done by remap !!!"<<std::endl;
+        cv::Mat map1, map2;
+        cv::convertMaps(mapX, mapY, map1, map2, CV_32FC1, false);
+        cv::remap(img_dist, img_undist, map1, map2, cv::INTER_LINEAR)
+#endif
+}
 
 } // end namespace 

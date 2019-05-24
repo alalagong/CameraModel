@@ -3,6 +3,8 @@
 
 #include "abstract_camera.hpp"
 
+// #define USE_REMAP
+
 namespace camera_model
 {
 using namespace Eigen;

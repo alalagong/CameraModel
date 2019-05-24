@@ -173,6 +173,7 @@ void PinholeCamera::undistortMat(const cv::Mat &img_dist, cv::Mat &img_undist) c
         assert(img_dist.type() == CV_8UC1);
         img_undist = cv::Mat(height_, width_, img_dist.type());
         for(int i=0; i<height_; i++)
+        {
             for(int j=0; j<width_; j++)
             {
                 cv::Point2f pt_undist, pt_dist;  // point on unit plane
@@ -215,6 +216,7 @@ void PinholeCamera::undistortMat(const cv::Mat &img_dist, cv::Mat &img_undist) c
                 }
                 
             }
+        }    
     }
     
 }
