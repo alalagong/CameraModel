@@ -54,7 +54,7 @@ MEICamera::MEICamera(std::string calib_file) :
     if (!fs["Camera.model"].empty())
         fs["Camera.model"] >> str_camera_model;
 
-    LOG_ASSERT(str_camera_model == "pinhole") << "Wrong camera modle: " << str_camera_model;
+    LOG_ASSERT(str_camera_model == "mei") << "Wrong camera modle: " << str_camera_model;
 
     //* resolution 分辨率
     cv::FileNode resolution = fs["Camera.resolution"];
@@ -212,8 +212,8 @@ void MEICamera::undistortMat(const cv::Mat &img_dist, cv::Mat &img_undist ) cons
             mapY.at<float>(j, i) = yd;
 
 #ifndef USE_REMAP
-            std::cout<<"Done by no remap !!!"<<std::endl;
-            Eigen::Vector2d pix_dist(xd, yd);
+            Eigen::Vector2d pix_dist;
+            pix_dist << xd, yd;
             if(isInFrame(pix_dist, 1))
             {
                 // 双线性插值

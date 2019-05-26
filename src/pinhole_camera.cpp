@@ -76,6 +76,7 @@ PinholeCamera::PinholeCamera(std::string calib_file) :
     K_.at<double>(0,2) = cx_;
     K_.at<double>(1,1) = fy_;
     K_.at<double>(1,2) = cy_;
+    // LOG(INFO) << "["<<fx_ <<", "<<fy_<<", "<<cx_<<", "<<cy_<<"]";
 
     //* distortion_coefficients 畸变系数
     cv::FileNode distortion_coefficients = fs["Camera.distortion_coefficients"];
@@ -84,6 +85,7 @@ PinholeCamera::PinholeCamera(std::string calib_file) :
     k2_ = distortion_coefficients[1];
     p1_ = distortion_coefficients[2];
     p2_ = distortion_coefficients[3];
+    // LOG(INFO) << "["<<k1_ <<", "<<k2_<<", "<<p1_<<", "<<p2_<<"]";
 
     D_ = cv::Mat::zeros(1,4,CV_64F);
     D_.at<double>(0) = k1_;
@@ -162,10 +164,10 @@ void PinholeCamera::undistortMat(const cv::Mat &img_dist, cv::Mat &img_undist) c
     if(0)  // use opencv
     { 
         cv::Mat map1, map2;
-        cv::initUndistortRectifyMap(K_, D_, cv::Mat(), cv::Mat(), cv::Size(width_, height_), CV_16SC2, map1, map2);
-        // cv::initUndistortRectifyMap(K_, D_, Mat(), 
-        //             cv::getOptimalNewCameraMatrix(K_, D_, cv::Size(width_, height_), 1, cv::Size(width_, height_), 0),
-        //             cv::Size(width_, height_), CV_16SC2, map1, map2);
+        // cv::initUndistortRectifyMap(K_, D_, cv::Mat(), cv::Mat(), cv::Size(width_, height_), CV_16SC2, map1, map2);
+        cv::initUndistortRectifyMap(K_, D_, Mat(), 
+                    cv::getOptimalNewCameraMatrix(K_, D_, cv::Size(width_, height_), 1, cv::Size(width_, height_), 0),
+                    cv::Size(width_, height_), CV_16SC2, map1, map2);
         cv::remap(img_dist, img_undist, map1, map2, cv::INTER_LINEAR);   
     }
     else
@@ -180,20 +182,36 @@ void PinholeCamera::undistortMat(const cv::Mat &img_dist, cv::Mat &img_undist) c
                 pt_undist.x = (j - cx_) / fx_;
                 pt_undist.y = (i - cy_) / fy_;
 
-                double x, y, r2, r4, r6, a1, a2, a3, cdist, xd, yd;
+                //! radtan
+                // double x, y, r2, r4, r6, a1, a2, a3, cdist, xd, yd;
+                // x = pt_undist.x;
+                // y = pt_undist.y;
+                // r2 = x*x + y*y;
+                // r4 = r2*r2;
+                // r6 = r4*r2;
+                // a1 = 2*x*y;
+                // a2 = r2 + 2*x*x;
+                // a3 = r2 + 2*y*y;
+                // cdist = 1 +D_.at<double>(0)*r2 + D_.at<double>(1)*r4;
+                // pt_dist.x = x*cdist + D_.at<double>(2)*a1 + D_.at<double>(3)*a2;
+                // pt_dist.y = y*cdist + D_.at<double>(2)*a3 + D_.at<double>(3)*a1;
+                // xd = pt_dist.x*fx_ + cx_;
+                // yd = pt_dist.y*fy_ + cy_;
+
+                //! equi
+                double x, y, r, xd, yd, theta, theta2, theta4, theta6, theta8, thetad, scaling;
                 x = pt_undist.x;
                 y = pt_undist.y;
-                r2 = x*x + y*y;
-                r4 = r2*r2;
-                r6 = r4*r2;
-                a1 = 2*x*y;
-                a2 = r2 + 2*x*x;
-                a3 = r2 + 2*y*y;
-                cdist = 1 +D_.at<double>(0)*r2 + D_.at<double>(1)*r4;
-                pt_dist.x = x*cdist + D_.at<double>(2)*a1 + D_.at<double>(3)*a2;
-                pt_dist.y = y*cdist + D_.at<double>(2)*a3 + D_.at<double>(3)*a1;
-                xd = pt_dist.x*fx_ + cx_;
-                yd = pt_dist.y*fy_ + cy_;
+                r = sqrt(x*x + y*y);
+                theta = atan(r);
+                theta2 = theta * theta;
+                theta4 = theta2 * theta2;
+                theta6 = theta4 * theta2;
+                theta8 = theta4 * theta4;
+                thetad = theta * (1 + D_.at<double>(0) * theta2 + D_.at<double>(1) * theta4 + D_.at<double>(2) * theta6 + D_.at<double>(3) * theta8);
+                scaling = (r > 1e-8) ? thetad / r : 1.0;
+                xd = fx_*x*scaling + cx_;
+                yd = fy_*y*scaling + cy_;
 
                 Eigen::Vector2d pix_dist(xd, yd);
                 if(isInFrame(pix_dist, 1))

@@ -16,6 +16,8 @@ public:
 
     typedef std::shared_ptr<MEICamera> Ptr;
 
+    virtual const double xi() const { return xi_; }; 
+
     virtual Vector3d lift(const Vector2d& px) const;
 
     virtual Vector3d lift(double x, double y) const;

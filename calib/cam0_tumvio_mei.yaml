@@ -1,0 +1,10 @@
+%YAML:1.0
+
+# for TUM_VIO
+
+# Camera calibration and distortion parameters
+Camera.model: "mei" # "pinhole" or "mei"
+Camera.resolution: [512, 512] # width height
+Camera.intrinsics: [1.792187901303534, 533.340727445877, 533.2556495307942, 254.64689387916482, 256.4835490935692] #xi, fu, fv, cu, cv
+Camera.distortion_coefficients: [-0.05972430882700243, 0.17468739202093328, 0.000737218969875311, 0.000574074894976456]
+

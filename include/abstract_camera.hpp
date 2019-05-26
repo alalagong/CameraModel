@@ -71,6 +71,8 @@ public:
 
     inline const Model model() const { return model_; }
 
+    virtual const double xi() const;
+
     virtual Vector3d lift(const Vector2d& px) const;
 
     virtual Vector3d lift(double x, double y) const;
@@ -83,7 +85,7 @@ public:
 
     virtual void undistortMat(const cv::Mat &img_dist, cv::Mat &img_udist) const;
 
-    inline bool isInFrame(const Vector2i &obs, int boundary=0) const
+    inline bool isInFrame(const Vector2d &obs, int boundary=0) const
     {
         if(obs[0] >= boundary && obs[0] < width() - boundary
             && obs[1] >= boundary && obs[1] < height() - boundary)
@@ -91,7 +93,7 @@ public:
         return false;
     }
 
-    inline bool isInFrame(const Vector2i &obs, int boundary, int level) const
+    inline bool isInFrame(const Vector2d &obs, int boundary, int level) const
     {
         if(obs[0] >= boundary && obs[0] < (width() >> level) - boundary
             && obs[1] >= boundary && obs[1] < (height() >> level) - boundary)

@@ -77,4 +77,9 @@ void AbstractCamera::undistortMat(const cv::Mat &img_dist, cv::Mat &img_udist) c
 {
     LOG(FATAL) << "Please instantiation!!!";
 }
+
+inline const double AbstractCamera::xi() const
+{
+    LOG(FATAL) << "Please instantiation!!!";
+}
 }
