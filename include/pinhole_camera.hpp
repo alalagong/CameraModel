@@ -1,6 +1,7 @@
 #ifndef _PINHOLE_CAMERA_HPP_
 #define _PINHOLE_CAMERA_HPP_
 #include "abstract_camera.hpp"
+#include <opencv2/calib3d/calib3d.hpp>
 
 namespace camera_model
 {

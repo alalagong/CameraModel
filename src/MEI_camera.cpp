@@ -168,10 +168,49 @@ Eigen::Vector2d MEICamera::project(const Eigen::Vector3d &xyz) const
 }
 
 //! 感觉去畸变的过程和xi那些操作无关的, 不需要转到Xs, 
-// bug: 这里的去畸变过程不是很懂原理, cv::undistort()和cv::undistortPoints两个函数
+// 迭代思想
 void MEICamera::undistortPoints(const std::vector<cv::Point2f> &pts_dist, std::vector<cv::Point2f> &pts_udist) const
 {
-    cv::undistortPoints(pts_dist, pts_udist, K_, D_); // 不知道对不对
+    if(0)
+        cv::omnidir::undistortPoints(pts_dist, pts_udist, K_, D_, xi_, cv::Mat()); // 和omnidir的一样
+    else
+    {   
+        for(auto it : pts_dist)
+        {
+            double x_dist, y_dist, r2, r4, a1, a2, a3, cdest_inv, deltaX, deltaY;
+            double x_corr, y_corr;
+            x_dist = (it.x - cx()) / fx();
+            y_dist = (it.y - cy()) / fy();
+
+            x_corr = x_dist;
+            y_corr = y_dist;
+
+            for(int i=0; i<10; i++)
+            {
+                r2 =x_corr*x_corr + y_corr*y_corr;
+                r4 = r2 * r2;
+
+                cdest_inv = 1 / (1.f + k1_*r2 + k2_*r4);
+                a1 = 2.f * x_corr * y_corr;
+                a2 = r2 + 2 * x_corr * x_corr;
+                a3 = r2 + 2 * y_corr * y_corr;
+
+                deltaX = p1_ * a1 + p2_ * a2;
+                deltaY = p1_ * a3 + p2_ * a1;
+
+                x_corr = (x_dist - deltaX) * cdest_inv;
+                y_corr = (y_dist - deltaY) * cdest_inv;
+
+            }
+
+            double x_undist = x_corr * fx() + cx();
+            double y_undist = y_corr * fy() + cy();
+
+            pts_udist.push_back(cv::Point2f(x_undist, y_undist));
+
+        }
+    }
+    assert(pts_dist.size() == pts_udist.size());
 }
 
 //TODO, difference between remap or not
@@ -193,12 +232,11 @@ void MEICamera::undistortMat(const cv::Mat &img_dist, cv::Mat &img_undist ) cons
             pt_undist.x = (j - cx_) / fx_;
             pt_undist.y = (i - cy_) / fy_;
 
-            double x, y, r2, r4, r6, a1, a2, a3, cdist, xd, yd;
+            double x, y, r2, r4, a1, a2, a3, cdist, xd, yd;
             x = pt_undist.x;
             y = pt_undist.y;
             r2 = x*x + y*y;
             r4 = r2*r2;
-            r6 = r4*r2;
             a1 = 2*x*y;
             a2 = r2 + 2*x*x;
             a3 = r2 + 2*y*y;

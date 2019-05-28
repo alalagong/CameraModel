@@ -3,3 +3,5 @@
 *.json
 build
 log
+bin
+bin/test

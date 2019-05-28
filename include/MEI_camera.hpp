@@ -2,6 +2,7 @@
 #define _MEI_CAMERA_HPP_
 
 #include "abstract_camera.hpp"
+#include <opencv2/ccalib/omnidir.hpp>
 
 // #define USE_REMAP
 
