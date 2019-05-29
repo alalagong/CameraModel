@@ -104,11 +104,13 @@ Vector3d PinholeCamera::lift(double x, double y) const
     Vector3d xyz(0, 0, 1);
     if(distortion_)
     {
-        double p[2] = {x, y};
-        cv::Mat pt_d = cv::Mat(1, 1, CV_64FC2, p);
-        cv::Mat pt_u = cv::Mat(1, 1, CV_64FC2, xyz.data());
+        std::vector<cv::Point2f> pt_d, pt_u;
+        pt_d.push_back(cv::Point2f(x,y));
         // 函数要求两通道来表示点
-        cv::undistortPoints(pt_d, pt_u, K_, D_); 
+        undistortPoints(pt_d, pt_u); 
+        assert(pt_u.size() == 1);
+        xyz[0] = (pt_u[0].x - cx_) / fx_;
+        xyz[1] = (pt_u[0].y - cy_) / fy_;
     }
     else
     {
@@ -132,16 +134,17 @@ Vector2d PinholeCamera::project(double x, double y, double z) const
     Vector2d px(x_u, y_u);
     if(distortion_)
     {
-        const double x2 = x_u * x_u;
-        const double y2 = y_u * y_u;
-        const double r2 = x2 + y2;
-        const double rdist = 1 + r2 * (k1_ + k2_ * r2);
-        const double a1 = 2 * x_u * y_u;
-        const double a2 = r2 + 2 * x_u * x_u;
-        const double a3 = r2 + 2 * y_u * y_u;
+        const double r = sqrt(x_u*x_u + y_u*y_u);
+        const double theta = atan(r);
+        const double theta2 = theta*theta;
+        const double theta4 = theta2*theta2;
+        const double theta6 = theta2*theta4;
+        const double theta8 = theta4*theta4;
+        const double thetad = theta*(1.f + k1_*theta2 + k2_*theta4 + p1_*theta6 + p2_*theta8);
+        const double scale = (r > 1e-8)? thetad / r : 1.f;
 
-        px[0] = x_u * rdist + p1_ * a1 + p2_ * a2;
-        px[1] = y_u * rdist + p1_ * a3 + p2_ * a1;
+        px[0] = scale * px[0];
+        px[1] = scale * px[1];
     }
 
     px[0] = fx_ * px[0] + cx_;
@@ -193,7 +196,7 @@ void PinholeCamera::undistortPoints(const std::vector<cv::Point2f> &pts_dist, st
                 theta6 = theta2*theta4;
                 theta8 = theta4*theta4;
                 thetad = theta*(1.f + k1_*theta2 + k2_*theta4 + p1_*theta6 + p2_*theta8);
-                scaling_inv = (r > 1e-8) ? r / thetad  : 1.0;
+                scaling_inv = (thetad > 1e-8) ? r / thetad  : 1.0;
 
                 x_corr = scaling_inv*x_dist;
                 y_corr = scaling_inv*y_dist;

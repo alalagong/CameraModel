@@ -101,11 +101,12 @@ Eigen::Vector3d MEICamera::lift(double x, double y) const
     Eigen::Vector3d xyz(0, 0, 1);
     if(distortion_)
     {
-        double p[2] = {x, y};
-        cv::Mat pt_d = cv::Mat(1, 1, CV_64FC2, p);
-        cv::Mat pt_u = cv::Mat(1, 1, CV_64FC2, xyz.data());
-        // 函数要求两通道来表示点
-        cv::undistortPoints(pt_d, pt_u, K_, D_); 
+        std::vector<cv::Point2f> pt_d, pt_u;
+        pt_d.push_back(cv::Point2f(x,y));
+        undistortPoints(pt_d, pt_u); 
+        assert(pt_u.size() == 1);
+        xyz[0] = (pt_u[0].x - cx_) / fx_;
+        xyz[1] = (pt_u[0].y - cy_) / fy_;
     } 
     else
     {
@@ -203,8 +204,8 @@ void MEICamera::undistortPoints(const std::vector<cv::Point2f> &pts_dist, std::v
 
             }
 
-            double x_undist = x_corr * fx() + cx();
-            double y_undist = y_corr * fy() + cy();
+            double x_undist = x_corr; // * fx() + cx();
+            double y_undist = y_corr; // * fy() + cy();
 
             pts_udist.push_back(cv::Point2f(x_undist, y_undist));
 
@@ -221,6 +222,12 @@ void MEICamera::undistortMat(const cv::Mat &img_dist, cv::Mat &img_undist ) cons
     assert(img_dist.type() == CV_8UC1);
     img_undist = cv::Mat(height_, width_, img_dist.type());
 
+    cv::Mat K_new = K();
+    K_new.at<double>(0,0) = width()/4;
+    K_new.at<double>(0,2) = width()/2;
+    K_new.at<double>(1,1) = height()/4;
+    K_new.at<double>(1,2) = height()/2;
+
     cv::Mat mapX = cv::Mat::zeros(image_size, CV_32F);
     cv::Mat mapY = cv::Mat::zeros(image_size, CV_32F);
 
@@ -229,12 +236,34 @@ void MEICamera::undistortMat(const cv::Mat &img_dist, cv::Mat &img_undist ) cons
         for(int j=0; j<width_; j++)
         {
             cv::Point2f pt_undist, pt_dist;  // point on unit plane
-            pt_undist.x = (j - cx_) / fx_;
-            pt_undist.y = (i - cy_) / fy_;
+            pt_undist.x = (j - K_new.at<double>(0,2)) / K_new.at<double>(0,0);
+            pt_undist.y = (i - K_new.at<double>(1,2)) / K_new.at<double>(1,1);
+            
+            //! 通过这个可以理解了，这个射影矫正的过程，就是把原来透视球镜成像原理映射到 pinhole 上的一个过程
+            //! 所以最开始的相机内参是要自己求得，原来的参数是omni模型的
+            //! 而且相机成像为那种球状，不是因为畸变，而是本身的成像原理，因此开始无畸变的不需要xi。 
+            
+            //? 以下是错误的，留着引以为戒
+            // double x_u = pt_undist.x, y_u = pt_undist.y;
+            // double r_2 = x_u*x_u + y_u*y_u;
+            // Eigen::Vector3d xyz;
+            // double lambda = (xi_ + sqrt(1.0 + (1.0 - xi_*xi_)*(r_2)))/(r_2 + 1.0);
+            // xyz << lambda*x_u, lambda*y_u, lambda - xi_;
+
+            // xyz.normalize();
+            // double Xs = xyz[0];
+            // double Ys = xyz[1];
+            // double Zs = xyz[2];
+            
+            // pt_undist 是世界坐标下的， 理解重点！
+            double r = sqrt(pt_undist.x*pt_undist.x + pt_undist.y*pt_undist.y + 1);
+            double Xs = pt_undist.x/r;
+            double Ys = pt_undist.y/r;
+            double Zs = 1/r;
 
             double x, y, r2, r4, a1, a2, a3, cdist, xd, yd;
-            x = pt_undist.x;
-            y = pt_undist.y;
+            x = Xs/(Zs + xi_);
+            y = Ys/(Zs + xi_);
             r2 = x*x + y*y;
             r4 = r2*r2;
             a1 = 2*x*y;
@@ -278,8 +307,8 @@ void MEICamera::undistortMat(const cv::Mat &img_dist, cv::Mat &img_undist ) cons
 #ifdef USE_REMAP
         std::cout<<"Done by remap !!!"<<std::endl;
         cv::Mat map1, map2;
-        cv::convertMaps(mapX, mapY, map1, map2, CV_32FC1, false);
-        cv::remap(img_dist, img_undist, map1, map2, cv::INTER_LINEAR)
+        cv::convertMaps(mapX, mapY, map2, map1, CV_32FC1, false);
+        cv::remap(img_dist, img_undist, map1, map2, cv::INTER_LINEAR);
 #endif
 }
 

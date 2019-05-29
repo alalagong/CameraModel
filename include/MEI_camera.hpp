@@ -4,7 +4,7 @@
 #include "abstract_camera.hpp"
 #include <opencv2/ccalib/omnidir.hpp>
 
-// #define USE_REMAP
+#define USE_REMAP
 
 namespace camera_model
 {
