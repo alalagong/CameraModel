@@ -2,6 +2,8 @@
 
 Here is two camera models commonly used in **SLAM/VO**, it consists of MEI and Pinhole. It can rectify image or points, lift from pixel to unit plane and project from world to pixel. It gives both implementation based on **OpenCV** and **no-OpenCV**, so that we can explore all of the algorithm.
 
+More details see [blog](https://blog.csdn.net/OKasy/article/details/90665534)
+
 ## 1. Dependencies
 
 It's tested in **Ubuntu 16.04**
