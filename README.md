@@ -4,6 +4,8 @@ Here is two camera models commonly used in **SLAM/VO**, it consists of MEI and P
 
 More details see [blog](https://blog.csdn.net/OKasy/article/details/90665534)
 
+![Before](https://github.com/alalagong/CameraModel/blob/master/data/1.png) ![After](https://github.com/alalagong/CameraModel/blob/master/data/1_undist_pinhole.png)
+
 ## 1. Dependencies
 
 It's tested in **Ubuntu 16.04**
